@@ -1,35 +1,23 @@
-library(timeDate)
 library(rsconnect)
+library(plotly)
+library(tidyverse)
+library(dplyr)
 library(shiny)
 library(shinydashboard)
-library(tidyverse)
+library(ggrepel)
+library(treemap)
+library(ggplot2)
+library(timeDate)
+library(data.table)
+library(scales)
+library(RColorBrewer)
+library(dplyr)
 library(ggplot2)
 library(plotly)
-library(reshape2)
-library(shinyWidgets)
-library(sf)
-library(tmap)
-library(leaflet)
-library(ggmosaic)
-library(htmltools)
-library(raster)
-library(rgdal)
-library(rgeos)
-require(maps)
-require(mapdata)
-library('treemap')
-library(RColorBrewer)
-library(htmlwidgets)
-library(dplyr)
-library(ggrepel)
-library(scales)
-library(sp)
-library(data.table)
+library(rworldmap)
+library(countrycode)
 #----------------------------------------Package installation--------------------------------------------
-packages = c('rsconnect', 'tinytex','plotly', 'RColorBrewer','classInt','ggthemes',
-             'tidyverse', 'pivottabler', 'dplyr','shiny','shinythemes', 'lubridate',
-             'sf', 'tmap', 'shinyWidgets', 'leaflet', 'ggmosaic', 'htmltools', 'raster', 'rgdal', 'rgeos', 'remotes',
-             'ggrepel', 'scales', 'd3Tree', 'data.table')
+packages = c('countrycode','dplyr','ggplot2','plotly','RColorBrewer','rsconnect','plotly','tidyverse', 'dplyr','shiny','shinydashboard', 'ggrepel','treemap','ggplot2','timeDate','data.table','scales','rworldmap')
 for(p in packages){
     if(!require(p, character.only = T)){
         install.packages(p)
@@ -75,6 +63,14 @@ magicquadrantdata <- mutate(importexportdata, export_percentile = ntile(importex
 magicquadrantdata <- mutate(magicquadrantdata, import_percentile = ntile(importexportdata$import_value,100))
 magicquadrantdata$trade_balance <- magicquadrantdata$export_value - magicquadrantdata$import_value
 
+tradebalance<-magicquadrantdata[magicquadrantdata$year<2020 & magicquadrantdata$year>2000,]
+tradebalance <- tradebalance %>%
+    group_by(country) %>%
+    summarise(trade_balance = sum(trade_balance))
+
+tradebalance_df<-joinCountryData2Map(tradebalance
+                                     , joinCode = "NAME" 
+                                     , nameJoinColumn = "country")
 #---Trends
 
 
@@ -429,6 +425,8 @@ ui <- dashboardPage(
             #-------------------------------------------------------TRADE BALANCE DASHBOARD------------------------------------------
             tabItem(tabName = "TRADEBALANCE",
                     fluidRow(
+                        column(12, h1("Trade Balance in Asia since 2000 in SGD Millions")),
+                        column(10, plotOutput(outputId="geoplot", height = "500px"))
                     )
             ),
             #-------------------------------------------------------------------------------------------------------------------
@@ -906,6 +904,18 @@ server <- function(input, output) {
         p
     })
     #---------------------------------------------------------------------------------------------------------------------------
+    
+    
+    output$geoplot <- renderPlot({
+        mapParams <- mapPolys(mapToPlot = tradebalance_df, nameColumnToPlot='trade_balance', mapRegion='asia',
+                              missingCountryCol='dark grey', numCats=10, 
+                              colourPalette=c('red4','red3','red','coral','orange','yellow2','yellow','greenyellow','green1','green4'),
+                              addLegend=TRUE,
+                              oceanCol='light blue')
+        mtext("Grey : No Data Available",side=1,line=-1)
+        
+    })
+    
 }
 
 shinyApp(ui = ui, server = server)
